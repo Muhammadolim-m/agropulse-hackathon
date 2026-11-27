@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import { connectMongo, getMongoStatus } from "./mongo.js";
-import { User, Lot, Order, FieldPlan } from "./models.js";
+import { User, Lot, Order, FieldPlan, SupportMessage } from "./models.js";
 import { CROP_IMAGES, CROP_PROFILES, REGION_COORDS, calculateFieldMetrics, ensureSeedData } from "./seed.js";
 import {
   createAdminPinToken,
@@ -127,6 +127,60 @@ app.post("/api/users/subscription", requireDb, requireAuth, async (req, res) => 
   res.json({ user });
 });
 
+app.post("/api/support", requireDb, async (req, res) => {
+  const { senderName, senderEmail, senderPhone, topic, message } = req.body;
+  if (!senderName || !String(senderName).trim() || !message || !String(message).trim()) {
+    return res.status(400).json({ error: "Ismingiz va xabar matnini kiriting" });
+  }
+
+  const item = await SupportMessage.create({
+    senderUid: req.authUser?.uid || "",
+    senderName: String(senderName).trim(),
+    senderEmail: String(req.authUser?.email || senderEmail || "").trim().toLowerCase(),
+    senderPhone: String(senderPhone || "").trim(),
+    topic: String(topic || "Umumiy savol").trim(),
+    message: String(message).trim(),
+    status: "Yangi",
+  });
+
+  res.status(201).json({ item });
+});
+
+app.get("/api/support/my", requireDb, requireAuth, async (req, res) => {
+  const items = await SupportMessage.find({
+    $or: [{ senderUid: req.authUser.uid }, { senderEmail: req.authUser.email }],
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  res.json({ items });
+});
+
+app.get("/api/admin/support", requireDb, requireAdminUnlocked, async (_req, res) => {
+  const items = await SupportMessage.find().sort({ createdAt: -1 }).lean();
+  res.json({ items });
+});
+
+app.patch("/api/admin/support/:id", requireDb, requireAdminUnlocked, async (req, res) => {
+  const adminReply = String(req.body.adminReply || "").trim();
+  const status = req.body.status === "Yangi" ? "Yangi" : "Javob berildi";
+
+  const item = await SupportMessage.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: {
+        adminReply,
+        status,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+
+  if (!item) {
+    return res.status(404).json({ error: "Xabar topilmadi" });
+  }
+  res.json({ item });
+});
+
 app.post("/api/admin/verify-code", requireAdmin, (req, res) => {
   const { code } = req.body;
   if (!verifyAdminPasscodeInput(code)) {
@@ -177,6 +231,60 @@ app.patch("/api/admin/users/:id/subscription", requireDb, requireAdminUnlocked, 
   res.json({ user });
 });
 
+app.post("/api/support", requireDb, async (req, res) => {
+  const { senderName, senderEmail, senderPhone, topic, message } = req.body;
+  if (!senderName || !String(senderName).trim() || !message || !String(message).trim()) {
+    return res.status(400).json({ error: "Ismingiz va xabar matnini kiriting" });
+  }
+
+  const item = await SupportMessage.create({
+    senderUid: req.authUser?.uid || "",
+    senderName: String(senderName).trim(),
+    senderEmail: String(req.authUser?.email || senderEmail || "").trim().toLowerCase(),
+    senderPhone: String(senderPhone || "").trim(),
+    topic: String(topic || "Umumiy savol").trim(),
+    message: String(message).trim(),
+    status: "Yangi",
+  });
+
+  res.status(201).json({ item });
+});
+
+app.get("/api/support/my", requireDb, requireAuth, async (req, res) => {
+  const items = await SupportMessage.find({
+    $or: [{ senderUid: req.authUser.uid }, { senderEmail: req.authUser.email }],
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  res.json({ items });
+});
+
+app.get("/api/admin/support", requireDb, requireAdminUnlocked, async (_req, res) => {
+  const items = await SupportMessage.find().sort({ createdAt: -1 }).lean();
+  res.json({ items });
+});
+
+app.patch("/api/admin/support/:id", requireDb, requireAdminUnlocked, async (req, res) => {
+  const adminReply = String(req.body.adminReply || "").trim();
+  const status = req.body.status === "Yangi" ? "Yangi" : "Javob berildi";
+
+  const item = await SupportMessage.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: {
+        adminReply,
+        status,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+
+  if (!item) {
+    return res.status(404).json({ error: "Xabar topilmadi" });
+  }
+  res.json({ item });
+});
+
 app.post("/api/admin/users/grant-pro", requireDb, requireAdminUnlocked, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const plan = req.body.plan === "free" ? "free" : "pro";
@@ -204,6 +312,60 @@ app.post("/api/admin/users/grant-pro", requireDb, requireAdminUnlocked, async (r
   }
 
   res.json({ user });
+});
+
+app.post("/api/support", requireDb, async (req, res) => {
+  const { senderName, senderEmail, senderPhone, topic, message } = req.body;
+  if (!senderName || !String(senderName).trim() || !message || !String(message).trim()) {
+    return res.status(400).json({ error: "Ismingiz va xabar matnini kiriting" });
+  }
+
+  const item = await SupportMessage.create({
+    senderUid: req.authUser?.uid || "",
+    senderName: String(senderName).trim(),
+    senderEmail: String(req.authUser?.email || senderEmail || "").trim().toLowerCase(),
+    senderPhone: String(senderPhone || "").trim(),
+    topic: String(topic || "Umumiy savol").trim(),
+    message: String(message).trim(),
+    status: "Yangi",
+  });
+
+  res.status(201).json({ item });
+});
+
+app.get("/api/support/my", requireDb, requireAuth, async (req, res) => {
+  const items = await SupportMessage.find({
+    $or: [{ senderUid: req.authUser.uid }, { senderEmail: req.authUser.email }],
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  res.json({ items });
+});
+
+app.get("/api/admin/support", requireDb, requireAdminUnlocked, async (_req, res) => {
+  const items = await SupportMessage.find().sort({ createdAt: -1 }).lean();
+  res.json({ items });
+});
+
+app.patch("/api/admin/support/:id", requireDb, requireAdminUnlocked, async (req, res) => {
+  const adminReply = String(req.body.adminReply || "").trim();
+  const status = req.body.status === "Yangi" ? "Yangi" : "Javob berildi";
+
+  const item = await SupportMessage.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: {
+        adminReply,
+        status,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+
+  if (!item) {
+    return res.status(404).json({ error: "Xabar topilmadi" });
+  }
+  res.json({ item });
 });
 
 app.get("/api/dashboard", requireDb, async (req, res) => {

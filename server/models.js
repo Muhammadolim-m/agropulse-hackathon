@@ -94,8 +94,28 @@ const fieldPlanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const supportMessageSchema = new mongoose.Schema(
+  {
+    senderUid: { type: String, default: "", index: true },
+    senderName: { type: String, required: true, trim: true },
+    senderEmail: { type: String, default: "", trim: true, lowercase: true },
+    senderPhone: { type: String, default: "", trim: true },
+    topic: { type: String, default: "Umumiy savol", trim: true },
+    message: { type: String, required: true, trim: true },
+    adminReply: { type: String, default: "", trim: true },
+    status: {
+      type: String,
+      enum: ["Yangi", "Javob berildi"],
+      default: "Yangi",
+    },
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
 export const Lot = mongoose.models.Lot || mongoose.model("Lot", lotSchema);
 export const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
 export const FieldPlan =
   mongoose.models.FieldPlan || mongoose.model("FieldPlan", fieldPlanSchema);
+export const SupportMessage =
+  mongoose.models.SupportMessage || mongoose.model("SupportMessage", supportMessageSchema);

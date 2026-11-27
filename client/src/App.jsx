@@ -9,6 +9,7 @@ import MarketplaceTab from "./components/MarketplaceTab";
 import SmartCalcTab from "./components/SmartCalcTab";
 import FieldPlansTab from "./components/FieldPlansTab";
 import FarmerCabinetTab from "./components/FarmerCabinetTab";
+import SupportTab from "./components/SupportTab";
 import AuthModal from "./components/AuthModal";
 import { AddLotModal, GoogleMapModal, OrderModal } from "./components/Modals";
 
@@ -40,6 +41,8 @@ export default function App() {
   const [myOrders, setMyOrders] = useState([]);
   const [allLots, setAllLots] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [myTickets, setMyTickets] = useState([]);
   const [orders, setOrders] = useState([]);
   const [plans, setPlans] = useState([]);
 
@@ -72,6 +75,28 @@ export default function App() {
       setActiveTab("market");
     }
   }, [user, isAdmin, activeTab]);
+
+  useEffect(() => {
+    const syncHash = () => {
+      if (window.location.hash === "#admin" && user && isAdmin) {
+        setActiveTab("admin");
+      }
+    };
+    syncHash();
+    const onKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a" && user && isAdmin) {
+        e.preventDefault();
+        window.location.hash = "admin";
+        setActiveTab("admin");
+      }
+    };
+    window.addEventListener("hashchange", syncHash);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [user, isAdmin]);
 
   const notify = useCallback((message, type = "success") => {
     setToast({ message, type });
@@ -133,20 +158,34 @@ export default function App() {
       setPlans(plansRes.plans || []);
 
       if (adminFlag && unlockedFlag) {
-        const [usersRes, unfilteredLotsRes] = await Promise.all([
+        const [usersRes, unfilteredLotsRes, adminSupportRes] = await Promise.all([
           apiFetch("/api/admin/users"),
           apiFetch("/api/lots"),
+          apiFetch("/api/admin/support"),
         ]);
         setAdminUsers(usersRes.users || []);
         setAllLots(unfilteredLotsRes.lots || []);
+        setSupportMessages(adminSupportRes.items || []);
       } else {
         setAdminUsers([]);
         setAllLots([]);
+        setSupportMessages([]);
+      }
+
+      if (user) {
+        try {
+          const mySupp = await apiFetch("/api/support/my");
+          setMyTickets(mySupp.items || []);
+        } catch {
+          setMyTickets([]);
+        }
+      } else {
+        setMyTickets([]);
       }
     } catch (err) {
       notify(err.message || t.toasts.loadError, "error");
     }
-  }, [selectedCrop, selectedRegion, debouncedSearch, notify, t.toasts.loadError]);
+  }, [selectedCrop, selectedRegion, debouncedSearch, user, notify, t.toasts.loadError]);
 
   useEffect(() => {
     const unsub = subscribeAuth(async (fbUser) => {
@@ -272,6 +311,22 @@ export default function App() {
       t.adminPanel.proGrantedToast
     );
 
+  const handleSendSupport = (payload) =>
+    runAction(
+      () => apiFetch("/api/support", { method: "POST", body: JSON.stringify(payload) }),
+      t.supportPage.sentToast
+    ).catch(() => {});
+
+  const handleReplySupport = (id, adminReply) =>
+    runAction(
+      () =>
+        apiFetch(`/api/admin/support/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ adminReply, status: "Javob berildi" }),
+        }),
+      t.adminPanel.repliedToast
+    ).catch(() => {});
+
   const handleCreateLot = (payload) =>
     runAction(
       () => apiFetch("/api/lots", { method: "POST", body: JSON.stringify(payload) }),
@@ -312,7 +367,12 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
       <Navbar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (window.location.hash === "#admin" && tab !== "admin") {
+            history.replaceState(null, "", window.location.pathname + window.location.search);
+          }
+          setActiveTab(tab);
+        }}
         onAddLotClick={() => {
           if (user) {
             setShowAddLot(true);
@@ -424,6 +484,15 @@ export default function App() {
           />
         )}
 
+        {activeTab === "support" && (
+          <SupportTab
+            user={user}
+            myTickets={myTickets}
+            onSendSupport={handleSendSupport}
+            t={t}
+          />
+        )}
+
         {activeTab === "admin" && user && isAdmin && !adminUnlocked && (
           <div className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-lg dark:border-amber-900/60 dark:bg-slate-900">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300">
@@ -468,11 +537,13 @@ export default function App() {
               orders={orders}
               lots={allLots}
               adminUsers={adminUsers}
+              supportMessages={supportMessages}
               stats={stats}
               onStatusChange={handleStatusChange}
               onDeleteLot={handleDeleteLot}
               onToggleUserPro={handleToggleUserPro}
               onGrantProByEmail={handleGrantProByEmail}
+              onReplySupport={handleReplySupport}
               onLockAdmin={handleLockAdmin}
               lang={lang}
               currency={currency}

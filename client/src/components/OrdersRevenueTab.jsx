@@ -1,5 +1,17 @@
 import { useState } from "react";
-import { Coins, CheckCircle2, Truck, Clock, Crown, Trash2, Search, UserPlus, Lock } from "lucide-react";
+import {
+  Coins,
+  CheckCircle2,
+  Truck,
+  Clock,
+  Crown,
+  Trash2,
+  Search,
+  UserPlus,
+  Lock,
+  LifeBuoy,
+  Send,
+} from "lucide-react";
 import { CROP_IMAGES, formatCompactMoney, formatMoney } from "../lib/format";
 
 const STATUS_STEPS = ["Yangi", "Tasdiqlangan", "Yetkazilmoqda"];
@@ -8,11 +20,13 @@ export default function OrdersRevenueTab({
   orders,
   lots,
   adminUsers,
+  supportMessages,
   stats,
   onStatusChange,
   onDeleteLot,
   onToggleUserPro,
   onGrantProByEmail,
+  onReplySupport,
   onLockAdmin,
   lang,
   currency,
@@ -21,6 +35,7 @@ export default function OrdersRevenueTab({
   const [lotQuery, setLotQuery] = useState("");
   const [grantEmail, setGrantEmail] = useState("");
   const [grantLoading, setGrantLoading] = useState(false);
+  const [replies, setReplies] = useState({});
 
   const filteredLots = (lots || []).filter((l) => {
     const q = lotQuery.trim().toLowerCase();
@@ -92,6 +107,93 @@ export default function OrdersRevenueTab({
           <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white">{t.orders.partnerPrice}</p>
           <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t.orders.partnerDesc}</p>
         </div>
+      </div>
+
+      {/* Support Inbox from Users */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center gap-2">
+          <LifeBuoy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              {t.adminPanel.supportInboxTitle((supportMessages || []).length)}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t.adminPanel.supportInboxSub}
+            </p>
+          </div>
+        </div>
+
+        {(supportMessages || []).length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            {t.adminPanel.noSupportMessages}
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {supportMessages.map((msg) => {
+              const draft = replies[msg._id] ?? msg.adminReply ?? "";
+              const isReplied = msg.status === "Javob berildi";
+              return (
+                <div
+                  key={msg._id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/60"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900 dark:text-white">{msg.senderName}</span>
+                      {msg.senderEmail && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          ({msg.senderEmail})
+                        </span>
+                      )}
+                      {msg.senderPhone && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          • {msg.senderPhone}
+                        </span>
+                      )}
+                      <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                        {msg.topic}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                        isReplied
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                      }`}
+                    >
+                      {isReplied ? t.supportPage.statusReplied : t.supportPage.statusNew}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm text-slate-800 dark:text-slate-100">{msg.message}</p>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      await onReplySupport(msg._id, draft);
+                    }}
+                    className="mt-3 flex flex-col gap-2 sm:flex-row"
+                  >
+                    <input
+                      type="text"
+                      value={draft}
+                      onChange={(e) => setReplies((prev) => ({ ...prev, [msg._id]: e.target.value }))}
+                      placeholder={t.adminPanel.replyPlaceholder}
+                      className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>{t.adminPanel.replyBtn}</span>
+                    </button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Farmers & Premium Status Control */}

@@ -4,7 +4,7 @@ import {
   Calculator,
   ClipboardList,
   Warehouse,
-  Coins,
+  LifeBuoy,
   Plus,
   CheckCircle2,
   Sun,
@@ -31,9 +31,7 @@ export default function Navbar({
   onTabChange,
   onAddLotClick,
   mongoStatus,
-  orderCount,
   plansCount,
-  isAdmin,
   userProfile,
   lang,
   onLangChange,
@@ -54,7 +52,7 @@ export default function Navbar({
     { id: "calc", label: t.tabs.calc, icon: Calculator },
     { id: "plans", label: t.tabs.plans, icon: ClipboardList },
     { id: "farmer", label: t.tabs.farmer, icon: Warehouse },
-    ...(user && isAdmin ? [{ id: "admin", label: t.tabs.admin, icon: Coins }] : []),
+    { id: "support", label: t.tabs.support, icon: LifeBuoy },
   ];
 
   const userLabel = user?.displayName || user?.email?.split("@")[0] || "";
@@ -105,11 +103,6 @@ export default function Navbar({
                 {tab.id === "plans" && plansCount > 0 && (
                   <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
                     {plansCount}
-                  </span>
-                )}
-                {tab.id === "admin" && orderCount > 0 && (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
-                    {orderCount}
                   </span>
                 )}
               </button>
