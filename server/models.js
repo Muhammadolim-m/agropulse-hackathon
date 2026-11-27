@@ -51,6 +51,8 @@ const orderSchema = new mongoose.Schema(
     buyerName: { type: String, required: true, trim: true },
     company: { type: String, default: "To'g'ridan-to'g'ri xaridor", trim: true },
     buyerPhone: { type: String, required: true, trim: true },
+    deliveryRegion: { type: String, default: "", trim: true },
+    deliveryAddress: { type: String, default: "", trim: true },
     tons: { type: Number, required: true, min: 0.1 },
     pricePerKg: { type: Number, required: true },
     grossAmount: { type: Number, required: true },

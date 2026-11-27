@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+import "./env.js";
 import express from "express";
 import cors from "cors";
 import path from "node:path";
@@ -7,10 +7,9 @@ import fs from "node:fs";
 import { connectMongo, getMongoStatus } from "./mongo.js";
 import { User, Lot, Order, FieldPlan } from "./models.js";
 import { CROP_IMAGES, CROP_PROFILES, REGION_COORDS, calculateFieldMetrics, ensureSeedData } from "./seed.js";
-import { ADMIN_EMAIL, optionalAuth, requireAuth } from "./firebaseAuth.js";
+import { getAdminEmail, optionalAuth, requireAuth } from "./firebaseAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -87,9 +86,10 @@ app.post("/api/users/sync", requireDb, async (req, res) => {
     { upsert: true, new: true }
   ).lean();
 
+  const adminEmail = getAdminEmail();
   res.json({
     user,
-    isAdmin: email === ADMIN_EMAIL,
+    isAdmin: Boolean(adminEmail && email === adminEmail),
   });
 });
 
@@ -302,11 +302,21 @@ app.get("/api/orders", requireDb, async (req, res) => {
 });
 
 app.post("/api/orders", requireDb, requireAuth, async (req, res) => {
-  const { lotId, buyerName, buyerPhone, company, tons } = req.body;
+  const { lotId, buyerName, buyerPhone, company, deliveryRegion, deliveryAddress, tons } = req.body;
   const requestedTons = Number(tons);
 
-  if (!lotId || !buyerName || !buyerPhone || !requestedTons || requestedTons <= 0) {
-    return res.status(400).json({ error: "Xaridor ma'lumotlari va hajmni to'g'ri kiriting" });
+  if (
+    !lotId ||
+    !buyerName ||
+    !buyerPhone ||
+    !deliveryAddress ||
+    !String(deliveryAddress).trim() ||
+    !requestedTons ||
+    requestedTons <= 0
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Xaridor ma'lumotlari, yetkazish manzili va hajmni to'g'ri kiriting" });
   }
 
   const lot = await Lot.findById(lotId);
@@ -339,6 +349,8 @@ app.post("/api/orders", requireDb, requireAuth, async (req, res) => {
     buyerName: String(buyerName).trim(),
     company: String(company || "To'g'ridan-to'g'ri xaridor").trim(),
     buyerPhone: String(buyerPhone).trim(),
+    deliveryRegion: String(deliveryRegion || lot.region).trim(),
+    deliveryAddress: String(deliveryAddress).trim(),
     tons: requestedTons,
     pricePerKg: lot.pricePerKg,
     grossAmount,

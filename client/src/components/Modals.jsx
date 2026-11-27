@@ -55,6 +55,7 @@ export function AddLotModal({ onClose, onSubmit, user, t }) {
   const [customImage, setCustomImage] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function handleRegionChange(nextRegion) {
@@ -114,10 +115,13 @@ export function AddLotModal({ onClose, onSubmit, user, t }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setSubmitError("");
     setLoading(true);
     try {
       await onSubmit(form);
       onClose();
+    } catch (err) {
+      setSubmitError(err?.message || t.toasts.actionError);
     } finally {
       setLoading(false);
     }
@@ -357,6 +361,12 @@ export function AddLotModal({ onClose, onSubmit, user, t }) {
             <span>{t.modals.organicLabel}</span>
           </label>
 
+          {submitError && (
+            <p className="rounded-xl bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+              {submitError}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -375,6 +385,9 @@ export function OrderModal({ lot, onClose, onSubmit, user, isAdmin, lang, curren
   const [buyerName, setBuyerName] = useState(user?.displayName || user?.email?.split("@")[0] || "");
   const [company, setCompany] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("+998 90 ");
+  const [deliveryRegion, setDeliveryRegion] = useState("Toshkent");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const gross = Math.round((Number(tons) || 0) * 1000 * lot.pricePerKg);
@@ -383,6 +396,7 @@ export function OrderModal({ lot, onClose, onSubmit, user, isAdmin, lang, curren
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setSubmitError("");
     setLoading(true);
     try {
       await onSubmit({
@@ -391,8 +405,12 @@ export function OrderModal({ lot, onClose, onSubmit, user, isAdmin, lang, curren
         buyerName,
         company,
         buyerPhone,
+        deliveryRegion,
+        deliveryAddress,
       });
       onClose();
+    } catch (err) {
+      setSubmitError(err?.message || t.toasts.actionError);
     } finally {
       setLoading(false);
     }
@@ -443,9 +461,9 @@ export function OrderModal({ lot, onClose, onSubmit, user, isAdmin, lang, curren
             </label>
             <input
               type="number"
-              min="0.5"
+              min="0.1"
               max={lot.quantityTons}
-              step="0.5"
+              step="0.1"
               required
               value={tons}
               onChange={(e) => setTons(Number(e.target.value))}
@@ -490,6 +508,43 @@ export function OrderModal({ lot, onClose, onSubmit, user, isAdmin, lang, curren
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                {t.modals.deliveryRegionLabel}
+              </label>
+              <select
+                value={deliveryRegion}
+                onChange={(e) => setDeliveryRegion(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              >
+                {FORM_REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                {t.modals.deliveryAddressLabel}
+              </label>
+              <input
+                required
+                placeholder={t.modals.deliveryAddressPlaceholder}
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm outline-none focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {submitError && (
+            <p className="rounded-xl bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+              {submitError}
+            </p>
+          )}
 
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs dark:border-emerald-900 dark:bg-emerald-950/50">
             <div className="flex justify-between text-slate-700 dark:text-slate-200">

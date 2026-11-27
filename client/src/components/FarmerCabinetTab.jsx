@@ -165,6 +165,14 @@ export default function FarmerCabinetTab({
                         {t.orders.buyerLabel}: <strong>{order.buyerName}</strong> ({order.company}) •{" "}
                         {order.buyerPhone}
                       </p>
+                      {(order.deliveryAddress || order.deliveryRegion) && (
+                        <p className="mt-0.5 text-xs text-sky-700 dark:text-sky-400">
+                          {t.modals.deliveryToLabel}:{" "}
+                          <strong>
+                            {[order.deliveryRegion, order.deliveryAddress].filter(Boolean).join(", ")}
+                          </strong>
+                        </p>
+                      )}
                       <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                         {t.orders.dealSumLabel}: {formatMoney(order.grossAmount, currency, lang)}
                       </p>

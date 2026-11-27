@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
 
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
-export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+export function getFirebaseProjectId() {
+  return (process.env.FIREBASE_PROJECT_ID || "").trim();
+}
+
+export function getAdminEmail() {
+  return (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+}
 
 const CERTS_URL =
   "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
@@ -36,7 +41,8 @@ function decodeBase64Url(str) {
 }
 
 export async function verifyFirebaseIdToken(token) {
-  if (!FIREBASE_PROJECT_ID) {
+  const projectId = getFirebaseProjectId();
+  if (!projectId) {
     throw new Error("FIREBASE_PROJECT_ID is not configured");
   }
 
@@ -54,10 +60,10 @@ export async function verifyFirebaseIdToken(token) {
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
-  if (!payload.sub || payload.aud !== FIREBASE_PROJECT_ID) {
+  if (!payload.sub || payload.aud !== projectId) {
     throw new Error("Invalid token audience");
   }
-  if (payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) {
+  if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
     throw new Error("Invalid token issuer");
   }
   if (!payload.exp || payload.exp <= nowSec) {
@@ -80,12 +86,13 @@ export async function verifyFirebaseIdToken(token) {
   }
 
   const email = String(payload.email || "").toLowerCase();
+  const adminEmail = getAdminEmail();
   return {
     uid: payload.sub,
     email,
     name: payload.name || "",
     picture: payload.picture || "",
-    isAdmin: Boolean(ADMIN_EMAIL && email === ADMIN_EMAIL),
+    isAdmin: Boolean(adminEmail && email === adminEmail),
   };
 }
 
@@ -104,7 +111,8 @@ export async function optionalAuth(req, _res, next) {
 
   try {
     req.authUser = await verifyFirebaseIdToken(token);
-  } catch {
+  } catch (err) {
+    console.warn("Auth token verification failed:", err.message);
     req.authUser = null;
   }
   next();

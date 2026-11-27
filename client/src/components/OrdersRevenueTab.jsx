@@ -70,6 +70,14 @@ export default function OrdersRevenueTab({ orders, stats, onStatusChange, lang, 
                     {t.orders.buyerLabel}: <strong>{order.buyerName}</strong> ({order.company}) •{" "}
                     {order.buyerPhone}
                   </p>
+                  {(order.deliveryAddress || order.deliveryRegion) && (
+                    <p className="mt-0.5 text-xs text-sky-700 dark:text-sky-400">
+                      {t.modals.deliveryToLabel}:{" "}
+                      <strong>
+                        {[order.deliveryRegion, order.deliveryAddress].filter(Boolean).join(", ")}
+                      </strong>
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {t.orders.dealSumLabel}:{" "}
                     <strong className="text-slate-800 dark:text-slate-200">
