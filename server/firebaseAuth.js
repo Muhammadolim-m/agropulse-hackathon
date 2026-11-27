@@ -8,6 +8,59 @@ export function getAdminEmail() {
   return (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
 }
 
+export function getAdminPasscode() {
+  return String(process.env.ADMIN_PASSCODE || "").trim();
+}
+
+function getPinSigningSecret() {
+  return `${getAdminPasscode()}:${getFirebaseProjectId()}:${getAdminEmail()}`;
+}
+
+export function verifyAdminPasscodeInput(code) {
+  const expected = getAdminPasscode();
+  const actual = String(code || "").trim();
+  if (!expected || !actual) return false;
+  const a = Buffer.from(actual, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+export function createAdminPinToken(uid) {
+  const exp = Date.now() + 2 * 60 * 60 * 1000;
+  const payload = `${uid}.${exp}`;
+  const sig = crypto
+    .createHmac("sha256", getPinSigningSecret())
+    .update(payload)
+    .digest("hex");
+  return `${payload}.${sig}`;
+}
+
+export function verifyAdminPinToken(token, uid) {
+  if (!token || !uid || !getAdminPasscode()) return false;
+  const parts = String(token).split(".");
+  if (parts.length !== 3) return false;
+  const [tokenUid, expStr, sig] = parts;
+  if (tokenUid !== uid) return false;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp <= Date.now()) return false;
+
+  const expectedSig = crypto
+    .createHmac("sha256", getPinSigningSecret())
+    .update(`${tokenUid}.${expStr}`)
+    .digest("hex");
+  const a = Buffer.from(sig, "utf8");
+  const b = Buffer.from(expectedSig, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+export function hasValidAdminUnlock(req) {
+  if (!req.authUser?.isAdmin) return false;
+  const token = req.headers["x-admin-token"];
+  return verifyAdminPinToken(token, req.authUser.uid);
+}
+
 const CERTS_URL =
   "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
 
@@ -137,6 +190,16 @@ export function requireAdmin(req, _res, next) {
   }
   if (!req.authUser.isAdmin) {
     const err = new Error("Faqat admin uchun ruxsat etilgan");
+    err.status = 403;
+    throw err;
+  }
+  next();
+}
+
+export function requireAdminUnlocked(req, _res, next) {
+  requireAdmin(req, _res, () => {});
+  if (!hasValidAdminUnlock(req)) {
+    const err = new Error("Admin kodi talab qilinadi");
     err.status = 403;
     throw err;
   }

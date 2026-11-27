@@ -25,6 +25,11 @@ export async function apiFetch(path, options = {}) {
     }
   }
 
+  const adminToken = sessionStorage.getItem("agropulse-admin-token");
+  if (adminToken && !headers.has("x-admin-token")) {
+    headers.set("x-admin-token", adminToken);
+  }
+
   const res = await fetch(apiUrl(path), {
     ...options,
     headers,

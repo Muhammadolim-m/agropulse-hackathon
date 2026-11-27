@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import { apiFetch } from "./lib/api";
 import { TRANSLATIONS } from "./lib/i18n";
 import { logoutFirebase, subscribeAuth } from "./lib/firebase";
@@ -22,6 +23,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminUnlocked, setAdminUnlocked] = useState(() =>
+    Boolean(sessionStorage.getItem("agropulse-admin-token"))
+  );
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
@@ -111,16 +118,21 @@ export default function App() {
       ]);
 
       const adminFlag = Boolean(dashRes.stats?.isAdmin);
+      const unlockedFlag = Boolean(dashRes.stats?.adminUnlocked);
+      if (!unlockedFlag && sessionStorage.getItem("agropulse-admin-token")) {
+        sessionStorage.removeItem("agropulse-admin-token");
+      }
       setMongoStatus(healthRes.mongo || "connected");
       setStats(dashRes.stats);
       setIsAdmin(adminFlag);
+      setAdminUnlocked(unlockedFlag);
       setMyLots(dashRes.myLots || []);
       setMyOrders(dashRes.myIncomingOrders || []);
       setLots(lotsRes.lots || []);
       setOrders(ordersRes.orders || []);
       setPlans(plansRes.plans || []);
 
-      if (adminFlag) {
+      if (adminFlag && unlockedFlag) {
         const [usersRes, unfilteredLotsRes] = await Promise.all([
           apiFetch("/api/admin/users"),
           apiFetch("/api/lots"),
@@ -174,13 +186,45 @@ export default function App() {
   }
 
   async function handleLogout() {
+    sessionStorage.removeItem("agropulse-admin-token");
     await logoutFirebase();
     setUser(null);
     setUserProfile(null);
     setIsAdmin(false);
+    setAdminUnlocked(false);
     setActiveTab((prev) => (prev === "admin" ? "market" : prev));
     notify(t.toasts.authSignedOut);
     await loadAll();
+  }
+
+  async function handleVerifyAdminPin(e) {
+    e.preventDefault();
+    setPinError("");
+    setPinLoading(true);
+    try {
+      const res = await apiFetch("/api/admin/verify-code", {
+        method: "POST",
+        body: JSON.stringify({ code: pinInput }),
+      });
+      if (res?.adminToken) {
+        sessionStorage.setItem("agropulse-admin-token", res.adminToken);
+        setAdminUnlocked(true);
+        setPinInput("");
+        notify(t.adminPanel.pinUnlockedToast);
+        await loadAll();
+      }
+    } catch {
+      setPinError(t.adminPanel.pinWrong);
+    } finally {
+      setPinLoading(false);
+    }
+  }
+
+  function handleLockAdmin() {
+    sessionStorage.removeItem("agropulse-admin-token");
+    setAdminUnlocked(false);
+    setAdminUsers([]);
+    setAllLots([]);
   }
 
   async function runAction(fn, successMessage) {
@@ -305,7 +349,14 @@ export default function App() {
       )}
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
-        <KpiStrip stats={stats} user={user} isAdmin={isAdmin} lang={lang} currency={currency} t={t} />
+        <KpiStrip
+          stats={stats}
+          user={user}
+          isAdmin={isAdmin && adminUnlocked}
+          lang={lang}
+          currency={currency}
+          t={t}
+        />
 
         {activeTab === "market" && (
           <MarketplaceTab
@@ -373,7 +424,45 @@ export default function App() {
           />
         )}
 
-        {activeTab === "admin" && user && isAdmin && (
+        {activeTab === "admin" && user && isAdmin && !adminUnlocked && (
+          <div className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-lg dark:border-amber-900/60 dark:bg-slate-900">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300">
+              <Lock className="h-6 w-6" />
+            </div>
+            <h2 className="mt-3 text-lg font-bold text-slate-900 dark:text-white">
+              {t.adminPanel.pinTitle}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {t.adminPanel.pinSubtitle}
+            </p>
+            <form onSubmit={handleVerifyAdminPin} className="mt-4 space-y-3">
+              <input
+                type="password"
+                inputMode="numeric"
+                autoFocus
+                required
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder={t.adminPanel.pinPlaceholder}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-base font-bold tracking-[0.25em] outline-none focus:border-amber-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              {pinError && (
+                <p className="rounded-xl bg-rose-50 p-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                  {pinError}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={pinLoading}
+                className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-amber-400 disabled:opacity-60"
+              >
+                {pinLoading ? t.adminPanel.pinChecking : t.adminPanel.pinSubmit}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {activeTab === "admin" && user && isAdmin && adminUnlocked && (
           <Suspense fallback={null}>
             <AdminPanel
               orders={orders}
@@ -384,6 +473,7 @@ export default function App() {
               onDeleteLot={handleDeleteLot}
               onToggleUserPro={handleToggleUserPro}
               onGrantProByEmail={handleGrantProByEmail}
+              onLockAdmin={handleLockAdmin}
               lang={lang}
               currency={currency}
               t={t}

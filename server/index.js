@@ -7,7 +7,15 @@ import fs from "node:fs";
 import { connectMongo, getMongoStatus } from "./mongo.js";
 import { User, Lot, Order, FieldPlan } from "./models.js";
 import { CROP_IMAGES, CROP_PROFILES, REGION_COORDS, calculateFieldMetrics, ensureSeedData } from "./seed.js";
-import { optionalAuth, requireAdmin, requireAuth } from "./firebaseAuth.js";
+import {
+  createAdminPinToken,
+  hasValidAdminUnlock,
+  optionalAuth,
+  requireAdmin,
+  requireAdminUnlocked,
+  requireAuth,
+  verifyAdminPasscodeInput,
+} from "./firebaseAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -119,7 +127,16 @@ app.post("/api/users/subscription", requireDb, requireAuth, async (req, res) => 
   res.json({ user });
 });
 
-app.get("/api/admin/users", requireDb, requireAdmin, async (_req, res) => {
+app.post("/api/admin/verify-code", requireAdmin, (req, res) => {
+  const { code } = req.body;
+  if (!verifyAdminPasscodeInput(code)) {
+    return res.status(403).json({ error: "Admin kodi noto'g'ri" });
+  }
+  const adminToken = createAdminPinToken(req.authUser.uid);
+  res.json({ ok: true, adminToken });
+});
+
+app.get("/api/admin/users", requireDb, requireAdminUnlocked, async (_req, res) => {
   const [users, lots] = await Promise.all([
     User.find().sort({ createdAt: -1 }).lean(),
     Lot.find().select("ownerUid ownerEmail quantityTons soldTons").lean(),
@@ -140,7 +157,7 @@ app.get("/api/admin/users", requireDb, requireAdmin, async (_req, res) => {
   res.json({ users: enriched });
 });
 
-app.patch("/api/admin/users/:id/subscription", requireDb, requireAdmin, async (req, res) => {
+app.patch("/api/admin/users/:id/subscription", requireDb, requireAdminUnlocked, async (req, res) => {
   const plan = req.body.plan === "free" ? "free" : "pro";
   const user = await User.findByIdAndUpdate(
     req.params.id,
@@ -160,7 +177,7 @@ app.patch("/api/admin/users/:id/subscription", requireDb, requireAdmin, async (r
   res.json({ user });
 });
 
-app.post("/api/admin/users/grant-pro", requireDb, requireAdmin, async (req, res) => {
+app.post("/api/admin/users/grant-pro", requireDb, requireAdminUnlocked, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const plan = req.body.plan === "free" ? "free" : "pro";
   if (!email || !email.includes("@")) {
@@ -192,12 +209,13 @@ app.post("/api/admin/users/grant-pro", requireDb, requireAdmin, async (req, res)
 app.get("/api/dashboard", requireDb, async (req, res) => {
   const authUser = req.authUser;
   const isAdmin = Boolean(authUser?.isAdmin);
+  const adminUnlocked = Boolean(isAdmin && hasValidAdminUnlock(req));
 
   const [lots, orders, plans, proSubscribers] = await Promise.all([
     Lot.find().lean(),
     Order.find().sort({ createdAt: -1 }).lean(),
     FieldPlan.find().sort({ createdAt: -1 }).lean(),
-    isAdmin ? User.countDocuments({ subscriptionPlan: "pro" }) : Promise.resolve(0),
+    adminUnlocked ? User.countDocuments({ subscriptionPlan: "pro" }) : Promise.resolve(0),
   ]);
 
   const totalTonsAvailable = Number(
@@ -239,6 +257,7 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
 
   const stats = {
     isAdmin,
+    adminUnlocked,
     activeLots: lots.length,
     totalTonsAvailable,
     totalSoldTonsAll,
@@ -253,7 +272,7 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
     },
   };
 
-  if (isAdmin) {
+  if (adminUnlocked) {
     stats.totalOrders = orders.length;
     stats.totalGmvUzs = orders.reduce((sum, order) => sum + (order.grossAmount || 0), 0);
     stats.totalPlatformRevenueUzs = orders.reduce(
@@ -266,7 +285,7 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
   res.json({
     stats,
     myLots,
-    myIncomingOrders: myIncomingOrders.map((o) => sanitizeOrderForUser(o, isAdmin)),
+    myIncomingOrders: myIncomingOrders.map((o) => sanitizeOrderForUser(o, adminUnlocked)),
   });
 });
 
@@ -354,7 +373,7 @@ app.get("/api/orders", requireDb, async (req, res) => {
     return res.json({ orders: [] });
   }
 
-  if (authUser.isAdmin) {
+  if (authUser.isAdmin && hasValidAdminUnlock(req)) {
     const orders = await Order.find().sort({ createdAt: -1 }).lean();
     return res.json({ orders });
   }

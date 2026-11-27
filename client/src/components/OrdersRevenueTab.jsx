@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Coins, CheckCircle2, Truck, Clock, Crown, Trash2, Search, UserPlus } from "lucide-react";
+import { Coins, CheckCircle2, Truck, Clock, Crown, Trash2, Search, UserPlus, Lock } from "lucide-react";
 import { CROP_IMAGES, formatCompactMoney, formatMoney } from "../lib/format";
 
 const STATUS_STEPS = ["Yangi", "Tasdiqlangan", "Yetkazilmoqda"];
@@ -13,6 +13,7 @@ export default function OrdersRevenueTab({
   onDeleteLot,
   onToggleUserPro,
   onGrantProByEmail,
+  onLockAdmin,
   lang,
   currency,
   t,
@@ -48,6 +49,17 @@ export default function OrdersRevenueTab({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onLockAdmin}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+          <span>{t.adminPanel.pinLockBtn}</span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 dark:border-amber-900/60 dark:from-amber-950/40 dark:to-slate-900">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
