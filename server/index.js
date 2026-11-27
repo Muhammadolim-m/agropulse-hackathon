@@ -231,60 +231,6 @@ app.patch("/api/admin/users/:id/subscription", requireDb, requireAdminUnlocked, 
   res.json({ user });
 });
 
-app.post("/api/support", requireDb, async (req, res) => {
-  const { senderName, senderEmail, senderPhone, topic, message } = req.body;
-  if (!senderName || !String(senderName).trim() || !message || !String(message).trim()) {
-    return res.status(400).json({ error: "Ismingiz va xabar matnini kiriting" });
-  }
-
-  const item = await SupportMessage.create({
-    senderUid: req.authUser?.uid || "",
-    senderName: String(senderName).trim(),
-    senderEmail: String(req.authUser?.email || senderEmail || "").trim().toLowerCase(),
-    senderPhone: String(senderPhone || "").trim(),
-    topic: String(topic || "Umumiy savol").trim(),
-    message: String(message).trim(),
-    status: "Yangi",
-  });
-
-  res.status(201).json({ item });
-});
-
-app.get("/api/support/my", requireDb, requireAuth, async (req, res) => {
-  const items = await SupportMessage.find({
-    $or: [{ senderUid: req.authUser.uid }, { senderEmail: req.authUser.email }],
-  })
-    .sort({ createdAt: -1 })
-    .lean();
-  res.json({ items });
-});
-
-app.get("/api/admin/support", requireDb, requireAdminUnlocked, async (_req, res) => {
-  const items = await SupportMessage.find().sort({ createdAt: -1 }).lean();
-  res.json({ items });
-});
-
-app.patch("/api/admin/support/:id", requireDb, requireAdminUnlocked, async (req, res) => {
-  const adminReply = String(req.body.adminReply || "").trim();
-  const status = req.body.status === "Yangi" ? "Yangi" : "Javob berildi";
-
-  const item = await SupportMessage.findByIdAndUpdate(
-    req.params.id,
-    {
-      $set: {
-        adminReply,
-        status,
-      },
-    },
-    { returnDocument: "after" }
-  ).lean();
-
-  if (!item) {
-    return res.status(404).json({ error: "Xabar topilmadi" });
-  }
-  res.json({ item });
-});
-
 app.post("/api/admin/users/grant-pro", requireDb, requireAdminUnlocked, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const plan = req.body.plan === "free" ? "free" : "pro";
@@ -312,60 +258,6 @@ app.post("/api/admin/users/grant-pro", requireDb, requireAdminUnlocked, async (r
   }
 
   res.json({ user });
-});
-
-app.post("/api/support", requireDb, async (req, res) => {
-  const { senderName, senderEmail, senderPhone, topic, message } = req.body;
-  if (!senderName || !String(senderName).trim() || !message || !String(message).trim()) {
-    return res.status(400).json({ error: "Ismingiz va xabar matnini kiriting" });
-  }
-
-  const item = await SupportMessage.create({
-    senderUid: req.authUser?.uid || "",
-    senderName: String(senderName).trim(),
-    senderEmail: String(req.authUser?.email || senderEmail || "").trim().toLowerCase(),
-    senderPhone: String(senderPhone || "").trim(),
-    topic: String(topic || "Umumiy savol").trim(),
-    message: String(message).trim(),
-    status: "Yangi",
-  });
-
-  res.status(201).json({ item });
-});
-
-app.get("/api/support/my", requireDb, requireAuth, async (req, res) => {
-  const items = await SupportMessage.find({
-    $or: [{ senderUid: req.authUser.uid }, { senderEmail: req.authUser.email }],
-  })
-    .sort({ createdAt: -1 })
-    .lean();
-  res.json({ items });
-});
-
-app.get("/api/admin/support", requireDb, requireAdminUnlocked, async (_req, res) => {
-  const items = await SupportMessage.find().sort({ createdAt: -1 }).lean();
-  res.json({ items });
-});
-
-app.patch("/api/admin/support/:id", requireDb, requireAdminUnlocked, async (req, res) => {
-  const adminReply = String(req.body.adminReply || "").trim();
-  const status = req.body.status === "Yangi" ? "Yangi" : "Javob berildi";
-
-  const item = await SupportMessage.findByIdAndUpdate(
-    req.params.id,
-    {
-      $set: {
-        adminReply,
-        status,
-      },
-    },
-    { returnDocument: "after" }
-  ).lean();
-
-  if (!item) {
-    return res.status(404).json({ error: "Xabar topilmadi" });
-  }
-  res.json({ item });
 });
 
 app.get("/api/dashboard", requireDb, async (req, res) => {
@@ -656,12 +548,25 @@ app.patch("/api/orders/:id", requireDb, requireAuth, async (req, res) => {
   res.json({ order: sanitizeOrderForUser(existing.toObject(), req.authUser.isAdmin) });
 });
 
-app.get("/api/plans", requireDb, async (_req, res) => {
-  const plans = await FieldPlan.find().sort({ createdAt: -1 }).lean();
+// GET /api/plans — foydalanuvchiga tegishli rejalar (login bo'lmagan — kalkulator uchun barcha umumiy)
+app.get("/api/plans", requireDb, async (req, res) => {
+  const authUser = req.authUser;
+  let filter = {};
+  // Agar login qilingan bo'lsa faqat o'zining rejalarini qaytarish
+  if (authUser?.uid) {
+    filter = {
+      $or: [
+        { ownerUid: authUser.uid },
+        ...(authUser.email ? [{ ownerEmail: authUser.email }] : []),
+        { ownerUid: "" }, // bo'sh ownerUid (eski/anonim saqlangan) — public
+      ],
+    };
+  }
+  const plans = await FieldPlan.find(filter).sort({ createdAt: -1 }).lean();
   res.json({ plans });
 });
 
-app.post("/api/plans", requireDb, async (req, res) => {
+app.post("/api/plans", requireDb, requireAuth, async (req, res) => {
   const { fieldName, region, crop, areaHa, irrigationType, customCostUzs, sellingPricePerKgUzs } =
     req.body;
   if (!fieldName || !region || !crop || !areaHa || Number(areaHa) <= 0) {
@@ -680,15 +585,24 @@ app.post("/api/plans", requireDb, async (req, res) => {
 
   const plan = await FieldPlan.create({
     ...metrics,
-    ownerUid: req.authUser?.uid || "",
-    ownerEmail: req.authUser?.email || "",
+    ownerUid: req.authUser.uid,
+    ownerEmail: req.authUser.email || "",
   });
   res.status(201).json({ plan });
 });
 
-app.delete("/api/plans/:id", requireDb, async (req, res) => {
-  const deleted = await FieldPlan.findByIdAndDelete(req.params.id);
-  if (!deleted) return res.status(404).json({ error: "Hisob-kitob topilmadi" });
+app.delete("/api/plans/:id", requireDb, requireAuth, async (req, res) => {
+  const plan = await FieldPlan.findById(req.params.id);
+  if (!plan) return res.status(404).json({ error: "Hisob-kitob topilmadi" });
+
+  const canDelete =
+    (req.authUser.isAdmin && hasValidAdminUnlock(req)) ||
+    (plan.ownerUid && plan.ownerUid === req.authUser.uid);
+  if (!canDelete) {
+    return res.status(403).json({ error: "Faqat o'zingiz yaratgan reja ni o'chira olasiz" });
+  }
+
+  await plan.deleteOne();
   res.json({ ok: true });
 });
 
