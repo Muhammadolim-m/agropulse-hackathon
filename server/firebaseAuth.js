@@ -126,3 +126,17 @@ export function requireAuth(req, _res, next) {
   }
   next();
 }
+
+export function requireAdmin(req, _res, next) {
+  if (!req.authUser) {
+    const err = new Error("Avval tizimga kiring");
+    err.status = 401;
+    throw err;
+  }
+  if (!req.authUser.isAdmin) {
+    const err = new Error("Faqat admin uchun ruxsat etilgan");
+    err.status = 403;
+    throw err;
+  }
+  next();
+}

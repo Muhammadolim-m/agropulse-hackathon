@@ -30,6 +30,8 @@ export default function App() {
   const [lots, setLots] = useState([]);
   const [myLots, setMyLots] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
+  const [allLots, setAllLots] = useState([]);
+  const [adminUsers, setAdminUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [plans, setPlans] = useState([]);
 
@@ -101,14 +103,27 @@ export default function App() {
         apiFetch("/api/plans"),
       ]);
 
+      const adminFlag = Boolean(dashRes.stats?.isAdmin);
       setMongoStatus(healthRes.mongo || "connected");
       setStats(dashRes.stats);
-      setIsAdmin(Boolean(dashRes.stats?.isAdmin));
+      setIsAdmin(adminFlag);
       setMyLots(dashRes.myLots || []);
       setMyOrders(dashRes.myIncomingOrders || []);
       setLots(lotsRes.lots || []);
       setOrders(ordersRes.orders || []);
       setPlans(plansRes.plans || []);
+
+      if (adminFlag) {
+        const [usersRes, unfilteredLotsRes] = await Promise.all([
+          apiFetch("/api/admin/users"),
+          apiFetch("/api/lots"),
+        ]);
+        setAdminUsers(usersRes.users || []);
+        setAllLots(unfilteredLotsRes.lots || []);
+      } else {
+        setAdminUsers([]);
+        setAllLots([]);
+      }
     } catch (err) {
       notify(err.message || t.toasts.loadError, "error");
     }
@@ -185,6 +200,26 @@ export default function App() {
       notify(err.message || t.toasts.actionError, "error");
     }
   };
+
+  const handleToggleUserPro = (userId, plan) =>
+    runAction(
+      () =>
+        apiFetch(`/api/admin/users/${userId}/subscription`, {
+          method: "PATCH",
+          body: JSON.stringify({ plan }),
+        }),
+      plan === "pro" ? t.adminPanel.proGrantedToast : t.adminPanel.proRevokedToast
+    ).catch(() => {});
+
+  const handleGrantProByEmail = (email) =>
+    runAction(
+      () =>
+        apiFetch("/api/admin/users/grant-pro", {
+          method: "POST",
+          body: JSON.stringify({ email, plan: "pro" }),
+        }),
+      t.adminPanel.proGrantedToast
+    );
 
   const handleCreateLot = (payload) =>
     runAction(
@@ -334,8 +369,13 @@ export default function App() {
         {activeTab === "admin" && isAdmin && (
           <OrdersRevenueTab
             orders={orders}
+            lots={allLots}
+            adminUsers={adminUsers}
             stats={stats}
             onStatusChange={handleStatusChange}
+            onDeleteLot={handleDeleteLot}
+            onToggleUserPro={handleToggleUserPro}
+            onGrantProByEmail={handleGrantProByEmail}
             lang={lang}
             currency={currency}
             t={t}

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import { connectMongo, getMongoStatus } from "./mongo.js";
 import { User, Lot, Order, FieldPlan } from "./models.js";
 import { CROP_IMAGES, CROP_PROFILES, REGION_COORDS, calculateFieldMetrics, ensureSeedData } from "./seed.js";
-import { getAdminEmail, optionalAuth, requireAuth } from "./firebaseAuth.js";
+import { getAdminEmail, optionalAuth, requireAdmin, requireAuth } from "./firebaseAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -69,22 +69,29 @@ app.post("/api/users/sync", requireDb, async (req, res) => {
     return res.status(400).json({ error: "uid va email majburiy" });
   }
 
-  const user = await User.findOneAndUpdate(
-    { uid: String(uid) },
-    {
-      $set: {
+  let user = await User.findOne({ $or: [{ uid: String(uid) }, { email }] });
+  if (user) {
+    user.uid = String(uid);
+    user.email = email;
+    if (displayName) user.displayName = displayName;
+    if (photoURL) user.photoURL = photoURL;
+    user.provider = provider;
+    user.lastLoginAt = new Date();
+    await user.save();
+    user = user.toObject();
+  } else {
+    user = (
+      await User.create({
+        uid: String(uid),
         email,
         displayName,
         photoURL,
         provider,
-        lastLoginAt: new Date(),
-      },
-      $setOnInsert: {
         subscriptionPlan: "free",
-      },
-    },
-    { upsert: true, new: true }
-  ).lean();
+        lastLoginAt: new Date(),
+      })
+    ).toObject();
+  }
 
   const adminEmail = getAdminEmail();
   res.json({
@@ -103,11 +110,81 @@ app.post("/api/users/subscription", requireDb, requireAuth, async (req, res) => 
         subscriptionUpdatedAt: new Date(),
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   ).lean();
 
   if (!user) {
     return res.status(404).json({ error: "Foydalanuvchi topilmadi" });
+  }
+
+  res.json({ user });
+});
+
+app.get("/api/admin/users", requireDb, requireAdmin, async (_req, res) => {
+  const [users, lots] = await Promise.all([
+    User.find().sort({ createdAt: -1 }).lean(),
+    Lot.find().select("ownerUid ownerEmail quantityTons soldTons").lean(),
+  ]);
+
+  const enriched = users.map((u) => {
+    const owned = lots.filter(
+      (l) => l.ownerUid === u.uid || (l.ownerEmail && l.ownerEmail === u.email)
+    );
+    return {
+      ...u,
+      lotsCount: owned.length,
+      remainingTons: Number(owned.reduce((s, l) => s + (l.quantityTons || 0), 0).toFixed(1)),
+      soldTons: Number(owned.reduce((s, l) => s + (l.soldTons || 0), 0).toFixed(1)),
+    };
+  });
+
+  res.json({ users: enriched });
+});
+
+app.patch("/api/admin/users/:id/subscription", requireDb, requireAdmin, async (req, res) => {
+  const plan = req.body.plan === "free" ? "free" : "pro";
+  const user = await User.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: {
+        subscriptionPlan: plan,
+        subscriptionUpdatedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+
+  if (!user) {
+    return res.status(404).json({ error: "Fermer topilmadi" });
+  }
+
+  res.json({ user });
+});
+
+app.post("/api/admin/users/grant-pro", requireDb, requireAdmin, async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const plan = req.body.plan === "free" ? "free" : "pro";
+  if (!email || !email.includes("@")) {
+    return res.status(400).json({ error: "To'g'ri email kiriting" });
+  }
+
+  let user = await User.findOne({ email });
+  if (user) {
+    user.subscriptionPlan = plan;
+    user.subscriptionUpdatedAt = new Date();
+    await user.save();
+    user = user.toObject();
+  } else {
+    user = (
+      await User.create({
+        uid: `pending:${email}`,
+        email,
+        displayName: email.split("@")[0],
+        provider: "admin-granted",
+        subscriptionPlan: plan,
+        subscriptionUpdatedAt: new Date(),
+      })
+    ).toObject();
   }
 
   res.json({ user });
