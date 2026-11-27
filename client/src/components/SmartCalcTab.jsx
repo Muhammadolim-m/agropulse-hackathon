@@ -97,10 +97,10 @@ export default function SmartCalcTab({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs transition-colors dark:border-slate-800 dark:bg-slate-900 lg:col-span-6"
+        className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:col-span-6"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -353,7 +353,7 @@ export default function SmartCalcTab({
         </button>
       </form>
 
-      <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-6 text-white shadow-lg dark:border dark:border-slate-800 lg:col-span-6">
+      <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-4 text-white shadow-lg dark:border dark:border-slate-800 sm:p-6 lg:col-span-6">
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">

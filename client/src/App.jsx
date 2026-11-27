@@ -403,7 +403,7 @@ export default function App() {
 
       {toast && (
         <div
-          className={`fixed right-5 bottom-5 z-50 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg ${
+          className={`fixed right-4 bottom-20 left-4 z-50 rounded-xl px-4 py-3 text-center text-sm font-semibold text-white shadow-lg sm:right-5 sm:bottom-20 sm:left-auto sm:text-left lg:bottom-5 ${
             toast.type === "error" ? "bg-rose-600" : "bg-emerald-700"
           }`}
         >
@@ -411,7 +411,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-7xl space-y-5 px-3 pt-4 pb-24 sm:space-y-6 sm:px-6 sm:py-6 lg:pb-8">
         <KpiStrip
           stats={stats}
           user={user}

@@ -100,23 +100,27 @@ export default function KpiStrip({ stats, user, isAdmin, lang, currency, t }) {
       ];
 
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.label}
-            className="flex items-start justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs transition-colors dark:border-slate-800 dark:bg-slate-900"
+            className="flex items-start justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-4"
           >
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{card.label}</p>
-              <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
+                {card.label}
+              </p>
+              <p className="mt-1 truncate text-base font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">
                 {card.value}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{card.sub}</p>
+              <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
+                {card.sub}
+              </p>
             </div>
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${card.tone}`}>
-              <Icon className="h-5 w-5" />
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${card.tone}`}>
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
           </div>
         );
