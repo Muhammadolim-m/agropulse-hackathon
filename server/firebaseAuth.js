@@ -87,12 +87,14 @@ export async function verifyFirebaseIdToken(token) {
 
   const email = String(payload.email || "").toLowerCase();
   const adminEmail = getAdminEmail();
+  const isVerifiedEmail = payload.email_verified === true;
   return {
     uid: payload.sub,
     email,
+    emailVerified: isVerifiedEmail,
     name: payload.name || "",
     picture: payload.picture || "",
-    isAdmin: Boolean(adminEmail && email === adminEmail),
+    isAdmin: Boolean(isVerifiedEmail && adminEmail && email === adminEmail),
   };
 }
 

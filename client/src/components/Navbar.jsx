@@ -54,7 +54,7 @@ export default function Navbar({
     { id: "calc", label: t.tabs.calc, icon: Calculator },
     { id: "plans", label: t.tabs.plans, icon: ClipboardList },
     { id: "farmer", label: t.tabs.farmer, icon: Warehouse },
-    ...(isAdmin ? [{ id: "admin", label: t.tabs.admin, icon: Coins }] : []),
+    ...(user && isAdmin ? [{ id: "admin", label: t.tabs.admin, icon: Coins }] : []),
   ];
 
   const userLabel = user?.displayName || user?.email?.split("@")[0] || "";

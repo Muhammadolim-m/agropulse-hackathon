@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./lib/api";
 import { TRANSLATIONS } from "./lib/i18n";
 import { logoutFirebase, subscribeAuth } from "./lib/firebase";
@@ -8,9 +8,10 @@ import MarketplaceTab from "./components/MarketplaceTab";
 import SmartCalcTab from "./components/SmartCalcTab";
 import FieldPlansTab from "./components/FieldPlansTab";
 import FarmerCabinetTab from "./components/FarmerCabinetTab";
-import OrdersRevenueTab from "./components/OrdersRevenueTab";
 import AuthModal from "./components/AuthModal";
 import { AddLotModal, GoogleMapModal, OrderModal } from "./components/Modals";
+
+const AdminPanel = lazy(() => import("./components/OrdersRevenueTab"));
 
 export default function App() {
   const [lang, setLang] = useState(() => localStorage.getItem("agropulse-lang") || "uz");
@@ -58,6 +59,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("agropulse-currency", currency);
   }, [currency]);
+
+  useEffect(() => {
+    if ((!user || !isAdmin) && activeTab === "admin") {
+      setActiveTab("market");
+    }
+  }, [user, isAdmin, activeTab]);
 
   const notify = useCallback((message, type = "success") => {
     setToast({ message, type });
@@ -366,20 +373,22 @@ export default function App() {
           />
         )}
 
-        {activeTab === "admin" && isAdmin && (
-          <OrdersRevenueTab
-            orders={orders}
-            lots={allLots}
-            adminUsers={adminUsers}
-            stats={stats}
-            onStatusChange={handleStatusChange}
-            onDeleteLot={handleDeleteLot}
-            onToggleUserPro={handleToggleUserPro}
-            onGrantProByEmail={handleGrantProByEmail}
-            lang={lang}
-            currency={currency}
-            t={t}
-          />
+        {activeTab === "admin" && user && isAdmin && (
+          <Suspense fallback={null}>
+            <AdminPanel
+              orders={orders}
+              lots={allLots}
+              adminUsers={adminUsers}
+              stats={stats}
+              onStatusChange={handleStatusChange}
+              onDeleteLot={handleDeleteLot}
+              onToggleUserPro={handleToggleUserPro}
+              onGrantProByEmail={handleGrantProByEmail}
+              lang={lang}
+              currency={currency}
+              t={t}
+            />
+          </Suspense>
         )}
       </main>
 

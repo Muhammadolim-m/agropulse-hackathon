@@ -7,7 +7,7 @@ import fs from "node:fs";
 import { connectMongo, getMongoStatus } from "./mongo.js";
 import { User, Lot, Order, FieldPlan } from "./models.js";
 import { CROP_IMAGES, CROP_PROFILES, REGION_COORDS, calculateFieldMetrics, ensureSeedData } from "./seed.js";
-import { getAdminEmail, optionalAuth, requireAdmin, requireAuth } from "./firebaseAuth.js";
+import { optionalAuth, requireAdmin, requireAuth } from "./firebaseAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,12 +57,12 @@ app.get("/api/crops", (_req, res) => {
   res.json({ crops: CROP_PROFILES });
 });
 
-app.post("/api/users/sync", requireDb, async (req, res) => {
+app.post("/api/users/sync", requireDb, requireAuth, async (req, res) => {
   const authUser = req.authUser;
-  const uid = authUser?.uid || req.body.uid;
-  const email = (authUser?.email || req.body.email || "").trim().toLowerCase();
-  const displayName = String(req.body.displayName || authUser?.name || "").trim();
-  const photoURL = String(req.body.photoURL || authUser?.picture || "");
+  const uid = authUser.uid;
+  const email = (authUser.email || "").trim().toLowerCase();
+  const displayName = String(req.body.displayName || authUser.name || "").trim();
+  const photoURL = String(req.body.photoURL || authUser.picture || "");
   const provider = String(req.body.provider || "password");
 
   if (!uid || !email) {
@@ -93,10 +93,9 @@ app.post("/api/users/sync", requireDb, async (req, res) => {
     ).toObject();
   }
 
-  const adminEmail = getAdminEmail();
   res.json({
     user,
-    isAdmin: Boolean(adminEmail && email === adminEmail),
+    isAdmin: Boolean(authUser.isAdmin),
   });
 });
 
