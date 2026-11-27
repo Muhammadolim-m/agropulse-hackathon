@@ -20,6 +20,7 @@ export default function MarketplaceTab({
   onDeleteLot,
   user,
   isAdmin,
+  adminUnlocked,
   lang,
   currency,
   t,
@@ -118,7 +119,8 @@ export default function MarketplaceTab({
                         )}
                       </div>
 
-                      {(isAdmin || (user && lot.ownerUid === user.uid)) && (
+                      {((user && lot.ownerUid && lot.ownerUid === user.uid) ||
+                        (isAdmin && adminUnlocked)) && (
                         <button
                           onClick={() => onDeleteLot(lot._id)}
                           title={t.market.deleteLot}

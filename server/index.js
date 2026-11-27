@@ -398,6 +398,9 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
   const myLots = authUser
     ? lots.filter((l) => l.ownerUid === authUser.uid || (l.ownerEmail && l.ownerEmail === authUser.email))
     : [];
+  const myPlans = authUser
+    ? plans.filter((p) => p.ownerUid === authUser.uid || (p.ownerEmail && p.ownerEmail === authUser.email))
+    : [];
   const myLotIds = new Set(myLots.map((l) => String(l._id)));
   const myIncomingOrders = authUser
     ? orders.filter(
@@ -412,6 +415,9 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
     myIncomingOrders.reduce((sum, ord) => sum + (ord.tons || 0), 0).toFixed(1)
   );
   const mySalesRevenueUzs = myIncomingOrders.reduce((sum, ord) => sum + (ord.grossAmount || 0), 0);
+  const myTotalAreaHa = Number(
+    myPlans.reduce((sum, p) => sum + (p.areaHa || 0), 0).toFixed(1)
+  );
 
   const totalSoldTonsAll = Number(
     orders.reduce((sum, ord) => sum + (ord.tons || 0), 0).toFixed(1)
@@ -427,6 +433,8 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
     avgSavingsPercent,
     farmerStats: {
       myLotsCount: myLots.length,
+      myPlansCount: myPlans.length,
+      myTotalAreaHa,
       myRemainingTons,
       mySoldTons,
       mySalesRevenueUzs,
@@ -447,6 +455,7 @@ app.get("/api/dashboard", requireDb, async (req, res) => {
   res.json({
     stats,
     myLots,
+    myPlans,
     myIncomingOrders: myIncomingOrders.map((o) => sanitizeOrderForUser(o, adminUnlocked)),
   });
 });
@@ -520,7 +529,9 @@ app.delete("/api/lots/:id", requireDb, requireAuth, async (req, res) => {
   const lot = await Lot.findById(req.params.id);
   if (!lot) return res.status(404).json({ error: "Lot topilmadi" });
 
-  const canDelete = req.authUser.isAdmin || lot.ownerUid === req.authUser.uid;
+  const canDelete =
+    (req.authUser.isAdmin && hasValidAdminUnlock(req)) ||
+    (Boolean(lot.ownerUid) && lot.ownerUid === req.authUser.uid);
   if (!canDelete) {
     return res.status(403).json({ error: "Faqat o'zingiz joylagan lotni o'chira olasiz" });
   }
@@ -667,7 +678,11 @@ app.post("/api/plans", requireDb, async (req, res) => {
     sellingPricePerKgUzs,
   });
 
-  const plan = await FieldPlan.create(metrics);
+  const plan = await FieldPlan.create({
+    ...metrics,
+    ownerUid: req.authUser?.uid || "",
+    ownerEmail: req.authUser?.email || "",
+  });
   res.status(201).json({ plan });
 });
 

@@ -4,6 +4,7 @@ import {
   Calculator,
   ClipboardList,
   Warehouse,
+  UserCircle,
   LifeBuoy,
   Plus,
   CheckCircle2,
@@ -52,6 +53,7 @@ export default function Navbar({
     { id: "calc", label: t.tabs.calc, icon: Calculator },
     { id: "plans", label: t.tabs.plans, icon: ClipboardList },
     { id: "farmer", label: t.tabs.farmer, icon: Warehouse },
+    { id: "profile", label: t.tabs.profile, icon: UserCircle },
     { id: "support", label: t.tabs.support, icon: LifeBuoy },
   ];
 

@@ -9,6 +9,7 @@ import MarketplaceTab from "./components/MarketplaceTab";
 import SmartCalcTab from "./components/SmartCalcTab";
 import FieldPlansTab from "./components/FieldPlansTab";
 import FarmerCabinetTab from "./components/FarmerCabinetTab";
+import ProfileTab from "./components/ProfileTab";
 import SupportTab from "./components/SupportTab";
 import AuthModal from "./components/AuthModal";
 import { AddLotModal, GoogleMapModal, OrderModal } from "./components/Modals";
@@ -38,6 +39,7 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [lots, setLots] = useState([]);
   const [myLots, setMyLots] = useState([]);
+  const [myPlans, setMyPlans] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
   const [allLots, setAllLots] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
@@ -152,6 +154,7 @@ export default function App() {
       setIsAdmin(adminFlag);
       setAdminUnlocked(unlockedFlag);
       setMyLots(dashRes.myLots || []);
+      setMyPlans(dashRes.myPlans || []);
       setMyOrders(dashRes.myIncomingOrders || []);
       setLots(lotsRes.lots || []);
       setOrders(ordersRes.orders || []);
@@ -439,6 +442,7 @@ export default function App() {
             onDeleteLot={handleDeleteLot}
             user={user}
             isAdmin={isAdmin}
+            adminUnlocked={adminUnlocked}
             lang={lang}
             currency={currency}
             t={t}
@@ -478,6 +482,24 @@ export default function App() {
             onOpenAuth={() => setShowAuth(true)}
             onTogglePro={handleTogglePro}
             onStatusChange={handleStatusChange}
+            lang={lang}
+            currency={currency}
+            t={t}
+          />
+        )}
+
+        {activeTab === "profile" && (
+          <ProfileTab
+            user={user}
+            userProfile={userProfile}
+            myLots={myLots}
+            myPlans={myPlans}
+            farmerStats={stats?.farmerStats}
+            onOpenAuth={() => setShowAuth(true)}
+            onAddLotClick={() => setShowAddLot(true)}
+            onAddFieldClick={() => setActiveTab("calc")}
+            onDeleteLot={handleDeleteLot}
+            onDeletePlan={handleDeletePlan}
             lang={lang}
             currency={currency}
             t={t}

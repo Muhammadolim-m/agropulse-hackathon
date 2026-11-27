@@ -69,6 +69,8 @@ const orderSchema = new mongoose.Schema(
 const fieldPlanSchema = new mongoose.Schema(
   {
     fieldName: { type: String, required: true, trim: true },
+    ownerUid: { type: String, default: "", index: true },
+    ownerEmail: { type: String, default: "", trim: true, lowercase: true },
     region: { type: String, required: true, trim: true },
     crop: { type: String, required: true, trim: true },
     areaHa: { type: Number, required: true, min: 0.1 },
